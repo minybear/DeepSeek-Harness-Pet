@@ -1,0 +1,8 @@
+# @minybear/dsh-plugin-finder's own bundle patch. Loaded when the package is
+# listed in `dsh.profile.bundles` (added automatically by `dsh plugin add`).
+# It registers the tool plugin as a host row; the plugin's `apply` then
+# registers the `find_dsh_plugin` tool into the host tools registry
+# (its global layer, so the tool is visible to every agent/preset).
+- insert:
+    - id: plugin-finder
+      name: '@minybear/dsh-plugin-finder'

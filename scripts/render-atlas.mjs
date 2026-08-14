@@ -19,12 +19,15 @@ const C_BELLY = [0x8e, 0xf0, 0xda, 255];
 const C_ACCENT = [0xff, 0xb8, 0x4d, 255];
 const C_EYE = [0x1f, 0x24, 0x30, 255];
 const C_WHITE = [255, 255, 255, 255];
+const C_FOOD = [0xe3, 0x5d, 0x5d, 255];
+const C_BALL = [0x5b, 0x8d, 0xef, 255];
 
-const CELL = { width: 96, height: 104, columns: 8, rows: 9 };
+const CELL = { width: 96, height: 104, columns: 8, rows: 12 };
 const STATE_FRAME_COUNTS = {
 	idle: 6, 'running-right': 8, 'running-left': 8, waving: 4,
 	jumping: 5, failed: 8, waiting: 6, running: 6, review: 6,
 };
+const EXTRA_FRAME_COUNTS = { eat: 4, play: 4, drag: 4 };
 
 // ---- pixel buffer -----------------------------------------------------------
 class Pix {
@@ -77,7 +80,7 @@ function drawEye(g, x, y, mode, px) {
 		g.line(x - 3.5, y - 3.5, x + 3.5, y + 3.5, 2, C_EYE);
 		g.line(x + 3.5, y - 3.5, x - 3.5, y + 3.5, 2, C_EYE);
 	} else {
-		const r = mode === 'narrow' ? 2.6 : 4;
+		const r = mode === 'narrow' ? 2.6 : (mode === 'wide' ? 5 : 4);
 		g.fillCircle(x + px, y, r, C_EYE);
 		if (mode !== 'narrow') g.fillCircle(x + px + 1.4, y - 1.4, 1.4, C_WHITE);
 	}
@@ -96,8 +99,9 @@ function drawCreature(g, p) {
 
 	// feet
 	const fdx = p.foot * 6;
-	g.fillRect(cx - bw / 2 + 5 + fdx, cy + bodyH / 2 - 2, 15, 6, C_OUTLINE);
-	g.fillRect(cx + bw / 2 - 20 - fdx, cy + bodyH / 2 - 2, 15, 6, C_OUTLINE);
+	const footY = bodyH / 2 - 2 + (p.dangle ? 7 : 0);
+	g.fillRect(cx - bw / 2 + 5 + fdx, cy + footY, 15, 6, C_OUTLINE);
+	g.fillRect(cx + bw / 2 - 20 - fdx, cy + footY, 15, 6, C_OUTLINE);
 
 	// body
 	g.fillRoundRect(cx - bw / 2, cy - bodyH / 2, bw, bodyH, 13, C_BODY);
@@ -129,7 +133,7 @@ function drawCell(pix, g, col, row, state, f, total) {
 	const px = col * CELL.width, py = row * CELL.height;
 	const cx = px + CELL.width / 2;
 	const cy = py + CELL.height / 2 + 4;
-	let o = { cx, cy, s: 1, y: 0, eyes: 'open', px: 0, arm: false, foot: 0, flat: false, droop: false, gear: false };
+	let o = { cx, cy, s: 1, y: 0, eyes: 'open', px: 0, arm: false, foot: 0, flat: false, droop: false, gear: false, dangle: false };
 	switch (state) {
 		case 'idle': o.s = 1 + 0.03 * Math.sin((f / total) * Math.PI * 2); if (f % 3 === 2) o.eyes = 'blink'; break;
 		case 'running-right': o.foot = f % 2 === 0 ? 1 : -1; o.px = 1.5; break;
@@ -140,8 +144,22 @@ function drawCell(pix, g, col, row, state, f, total) {
 		case 'waiting': o.px = f % 4 < 2 ? -2 : 2; o.s = 1.02; break;
 		case 'running': o.eyes = 'narrow'; o.gear = true; o.s = 1 + 0.02 * Math.sin((f / total) * Math.PI * 2); o.px = 0.5; break;
 		case 'review': { const scan = [-2.5, -1.2, 0, 1.2, 2.5, 1.2]; o.px = scan[f] ?? 0; break; }
+		case 'eat': o.eyes = 'narrow'; o.s = 1.02; break;
+		case 'play': { const seq = [0, -10, -18, -10]; o.y = seq[f] ?? 0; break; }
+		case 'drag': o.eyes = 'wide'; o.dangle = true; o.foot = f % 2 === 0 ? -1 : 1; o.s = 1.04; break;
 	}
 	drawCreature(g, o);
+
+	// post-draw extras for the interaction states
+	if (state === 'eat') {
+		const bite = [6, 4, 2.5, 1.5][f] ?? 4;
+		g.fillCircle(cx + 27, cy + 1, bite, C_FOOD);
+		g.fillCircle(cx + 13, cy + 6, 3, C_EYE);
+	} else if (state === 'play') {
+		const ballY = [8, -14, -20, -6][f] ?? 0;
+		g.fillCircle(cx + 32, cy + ballY, 6, C_BALL);
+		g.strokeCircle(cx + 32, cy + ballY, 6, 1.5, C_OUTLINE);
+	}
 }
 
 // ---- PNG encoder -------------------------------------------------------------
@@ -183,10 +201,11 @@ function encodePng(pix) {
 const W = CELL.columns * CELL.width, H = CELL.rows * CELL.height;
 const pix = new Pix(W, H);
 const g = makeG(pix);
-const order = ['idle', 'running-right', 'running-left', 'waving', 'jumping', 'failed', 'waiting', 'running', 'review'];
+const order = ['idle', 'running-right', 'running-left', 'waving', 'jumping', 'failed', 'waiting', 'running', 'review', 'eat', 'play', 'drag'];
+const countOf = (state) => STATE_FRAME_COUNTS[state] ?? EXTRA_FRAME_COUNTS[state] ?? 1;
 for (let row = 0; row < order.length; row++) {
 	const state = order[row];
-	const count = STATE_FRAME_COUNTS[state];
+	const count = countOf(state);
 	for (let f = 0; f < count; f++) drawCell(pix, g, f, row, state, f, count);
 }
 
@@ -202,7 +221,7 @@ function countOpaque(px, col, row) {
 let ok = true;
 for (let row = 0; row < order.length; row++) {
 	const state = order[row];
-	const count = STATE_FRAME_COUNTS[state];
+	const count = countOf(state);
 	for (let col = 0; col < CELL.columns; col++) {
 		const opaque = countOpaque(pix, col, row);
 		if (col < count && opaque === 0) { console.error(`FAIL: ${state} col ${col} is empty`); ok = false; }

@@ -9,8 +9,9 @@ const clientPath = resolve(here, '../lib/client.js');
 // --- minimal React stub (import-time surface + one render pass) --------------
 const React = {
   createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.length ? children : undefined }),
-  useState: (init) => [init, () => {}],
+  useState: (init) => [typeof init === 'function' ? init() : init, () => {}],
   useEffect: () => {},
+  useLayoutEffect: () => {},
   useRef: (init) => ({ current: init }),
   useCallback: (fn) => fn,
   useSyncExternalStore: (_sub, getSnap) => getSnap(),
@@ -69,10 +70,14 @@ assert.equal(registrations[0].opts.inject().sessionsService, fakeCtx.sessions);
 // --- built-in asset: Codex-format grid via `frame` override ------------------
 const asset = mod.buildDefaultAsset();
 assert.equal(asset.pet.frame.columns, 8);
-assert.equal(asset.pet.frame.rows, 9);
-assert.equal(asset.pet.totalFrames, 72);
+assert.equal(asset.pet.frame.rows, 12);
+assert.equal(asset.pet.totalFrames, 96);
 assert.equal(asset.pet.displayName.length > 0, true);
 assert.ok(asset.dataUrl.startsWith('data:image/png'));
+// interaction states are declared through the official animations override
+assert.deepEqual(asset.pet.animations.eat.frames, [72, 73, 74, 75]);
+assert.deepEqual(asset.pet.animations.play.frames, [80, 81, 82, 83]);
+assert.deepEqual(asset.pet.animations.drag.frames, [88, 89, 90, 91]);
 
 // --- overlay component: renders null without a mounted asset (graceful) ------
 const el = registrations[0].Component({

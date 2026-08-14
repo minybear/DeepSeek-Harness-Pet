@@ -94,6 +94,27 @@ import {
   assert.equal(derivePetState({ running: false, waiting: true, error: null }), 'waiting');
   assert.equal(derivePetState({ running: false, waiting: false, error: null, celebrateUntil: now + 1000 }), 'jumping');
   assert.equal(derivePetState({ running: false, waiting: false, error: null, celebrateUntil: now - 1 }), 'idle');
+  // interaction states outrank session-driven ones
+  assert.equal(derivePetState({ running: true, drag: true }), 'drag');
+  assert.equal(derivePetState({ running: true, eat: true }), 'eat');
+  assert.equal(derivePetState({ running: true, play: true }), 'play');
+  assert.equal(derivePetState({ running: true, wave: true }), 'waving');
+}
+
+// --- custom animations drive the extended interaction states -------------------
+{
+  const pet = parsePetJson({
+    frame: { width: 96, height: 104, columns: 8, rows: 12 },
+    animations: {
+      eat: { frames: [72, 73, 74, 75], fps: 6 },
+      play: { frames: [80, 81, 82, 83], fps: 6 },
+      drag: { frames: [88, 89], fps: 4 },
+    },
+  });
+  assert.equal(pet.totalFrames, 96);
+  assert.deepEqual(stateFrames('eat', pet), [72, 73, 74, 75]);
+  assert.deepEqual(stateDurations('eat', pet), [167, 167, 167, 167]);
+  assert.deepEqual(stateFrames('drag', pet), [88, 89]);
 }
 
 // --- consistency: every STATE_ROWS key has frames & durations ------------------

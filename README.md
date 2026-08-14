@@ -18,8 +18,11 @@ Codex 风格的「桌面宠物」DSH 客户端插件：在 DeepSeek Harness（DS
   | `completed` 且未选 | review（8） | Ready |
   | 无活动 | idle（0） | （无） |
 
-- **交互**：点击宠物触发 waving（3）「Hi!」。
-- **Codex 兼容包格式**：宠物由 `pet.json`（`id/displayName/description/spritesheetPath/frame/animations`）+ 一张**行优先图集**（无独立 atlas 文件，帧索引 `index = row×columns + col`）描述；内置默认宠物在运行时用 canvas 生成（经 `frame` 字段声明 96×104×8×9 网格，与官方 `frame` 覆写机制一致）。
+- **交互**：
+  - 点击 → 弹出菜单：🍗 喂食（`eat`）、🎾 玩耍（`play`）、⚙ 尺寸/透明度设置。
+  - 拖拽 → 移动宠物位置（`drag` 姿态，位置持久化到 localStorage）。
+- **外观设置**：尺寸（0.5–1.5）、透明度（0.2–1），持久化到 `localStorage`。
+- **Codex 兼容包格式**：宠物由 `pet.json`（`id/displayName/description/spritesheetPath/frame/animations`）+ 一张**行优先图集**（无独立 atlas 文件，帧索引 `index = row×columns + col`）描述；内置默认宠物在运行时用 canvas 生成。前 9 行为 Codex V1 官方 9 状态，第 9–11 行为交互状态（eat/play/drag），经官方 `frame` 覆写（96×104×8×12）与 `animations` 字段声明。
 
 ## 结构
 
