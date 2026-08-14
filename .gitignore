@@ -1,0 +1,13 @@
+# dependencies & runtime artifacts
+node_modules/
+.verify-dsh/
+*.log
+.DS_Store
+
+# raw fetched research artifacts (large / third-party; cited by URL in the reports)
+research/*.html
+research/*.txt
+research/*.zip
+research/*.rs
+research/*.cjs
+research/*.py

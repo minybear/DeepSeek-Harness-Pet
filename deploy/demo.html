@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<title>dsh-pet — 本地演示</title>
+<style>
+  body { margin: 0; background: #14161f; color: #e6e8ef; font: 14px/1.5 system-ui, sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 18px; }
+  h3 { font-size: 14px; color: #b9c1d8; }
+  .stage { position: relative; height: 300px; background: #23283a; border-radius: 14px; overflow: hidden; margin: 12px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  button { background: #2b3248; color: #e6e8ef; border: 1px solid #3b435e; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+  button:hover { background: #364060; }
+  button.on { background: #35c1a9; color: #0c1a17; border-color: #35c1a9; font-weight: 600; }
+  .sheet { image-rendering: pixelated; border: 1px solid #3b435e; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>dsh-pet 本地演示（不依赖 DSH）</h1>
+  <p>舞台里的宠物由 <code>lib/client.js</code> 的真实 React 组件渲染；用按钮切换模拟的 agent 状态。</p>
+  <div class="row" id="buttons">
+    <button data-mode="idle">idle 待机</button>
+    <button data-mode="running">running 工作</button>
+    <button data-mode="waiting">waiting 等待输入</button>
+    <button data-mode="failed">failed 报错</button>
+    <button data-mode="completed">completed 就绪</button>
+  </div>
+  <div class="stage" id="stage"></div>
+  <h3>Spritesheet 图集（8 列 × 9 行，每行一个状态）</h3>
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script>
+  // Shim the DSH module loader so lib/client.js registers its factory.
+  window.__ModuleLoader__ = {
+    load({ id, factory }) {
+      if (id !== 'dsh-pet') throw new Error('unexpected module id ' + id);
+      window.__dshPet = factory(function requireShim(name) {
+        if (name === 'react') return window.React;
+        throw new Error('unexpected require("' + name + '")');
+      });
+    },
+  };
+</script>
+<script src="../lib/client.js"></script>
+<script>
+  const React = window.React;
+  const ReactDOM = window.ReactDOM;
+  const mod = window.__dshPet;
+
+  const MODES = {
+    idle:      { running: false, completed: false, error: null, waiting: false },
+    running:   { running: true,  completed: false, error: null, waiting: false },
+    waiting:   { running: false, completed: false, error: null, waiting: true },
+    failed:    { running: false, completed: false, error: 'demo error', waiting: false },
+    completed: { running: false, completed: true,  error: null, waiting: false },
+  };
+
+  function Stage({ mode }) {
+    const m = MODES[mode];
+    const snapshot = React.useMemo(() => ({
+      current: 'demo-session',
+      byId: {
+        'demo-session': {
+          running: m.running,
+          pendingInteraction: m.waiting ? { kind: 'approval' } : undefined,
+          completed: m.completed,
+        },
+      },
+    }), [m]);
+    const useSessions = React.useCallback((sel) => sel(snapshot), [snapshot]);
+    const sessionsService = React.useMemo(() => ({
+      binding: () => ({
+        session: {
+          subscribe: () => () => {},
+          getSnapshot: () => ({ lastAgentError: m.error }),
+        },
+      }),
+    }), [m]);
+
+    return React.createElement('div', { style: { position: 'relative', height: 300 } },
+      React.createElement(mod.PetOverlay, { useSessions, sessionsService })
+    );
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById('stage'));
+  function renderStage(mode) {
+    root.render(React.createElement(Stage, { mode }));
+    document.querySelectorAll('button[data-mode]').forEach((b) => {
+      b.classList.toggle('on', b.dataset.mode === mode);
+    });
+  }
+  document.querySelectorAll('button[data-mode]').forEach((b) => {
+    b.addEventListener('click', () => renderStage(b.dataset.mode));
+  });
+  renderStage('idle');
+
+  // Contact sheet: the full generated atlas.
+  const asset = mod.buildDefaultAsset();
+  const scale = 0.55;
+  const sheetW = Math.round(8 * 96 * scale);
+  const sheetH = Math.round(9 * 104 * scale);
+  const sheet = document.getElementById('sheet');
+  sheet.style.width = sheetW + 'px';
+  sheet.style.height = sheetH + 'px';
+  sheet.style.backgroundImage = 'url(' + asset.dataUrl + ')';
+  sheet.style.backgroundSize = sheetW + 'px ' + sheetH + 'px';
+</script>
+</body>
+</html>
