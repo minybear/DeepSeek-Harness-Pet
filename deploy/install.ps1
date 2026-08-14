@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 
 $src = Split-Path -Parent $PSScriptRoot          # workspace root (has lib/, package.json)
 $profileDir = Join-Path $DshHome 'profiles\web'
-$dest = Join-Path $profileDir 'node_modules\dsh-pet'
+$dest = Join-Path $profileDir 'node_modules\@minybear\dsh-pet'
 
 if (-not (Test-Path (Join-Path $src 'package.json'))) {
   throw "package.json not found under $src — run this from the dsh-pet checkout"
@@ -31,7 +31,7 @@ if (-not (Test-Path $profileDir)) { throw "profile dir missing: $profileDir (is 
 $rowBlock = @(
   '- insert:'
   '    - id: ui-pet'
-  "      name: 'dsh-pet'"
+  "      name: '@minybear/dsh-pet'"
 ) -join "`n"
 
 if (-not (Test-Path $patchFile)) {

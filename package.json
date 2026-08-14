@@ -1,5 +1,5 @@
 {
-  "name": "dsh-pet",
+  "name": "@minybear/dsh-pet",
   "description": "Codex-style desktop pet for the DSH web GUI: a floating animated sprite driven by the agent's running state",
   "version": "0.1.0",
   "type": "module",
@@ -28,6 +28,22 @@
     }
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/minybear/DeepSeek-Harness-Pet.git"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "pet",
+    "codex",
+    "desktop-pet",
+    "tamagotchi"
+  ],
   "dependencies": {},
   "peerDependencies": {
     "react": "^18.2.0",

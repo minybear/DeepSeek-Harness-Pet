@@ -1,5 +1,5 @@
-// verify-install.mjs — read-only checks that the dsh-pet install into a DSH
-// profile is correct: package resolvable, manifest valid, patch layer parses.
+// verify-install.mjs — read-only checks that the @minybear/dsh-pet install
+// into a DSH profile is correct: package resolvable, manifest valid, patch layer parses.
 import { createRequire } from 'node:module';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,14 +11,14 @@ const dshInstall = process.env.DSH_INSTALL || 'C:/Users/redtea/AppData/Local/npm
 let failures = 0;
 const check = (cond, msg) => { console.log((cond ? 'PASS ' : 'FAIL ') + msg); if (!cond) failures++; };
 
-// 1. dsh-pet must resolve from the profile (Node module lookup order)
+// 1. @minybear/dsh-pet must resolve from the profile (Node module lookup order)
 const req = createRequire(join(profileDir, 'package.json'));
 let pkgDir;
-for (const p of req.resolve.paths('dsh-pet') ?? []) {
-  const cand = join(p, 'dsh-pet');
+for (const p of req.resolve.paths('@minybear/dsh-pet') ?? []) {
+  const cand = join(p, '@minybear', 'dsh-pet');
   if (existsSync(join(cand, 'package.json'))) { pkgDir = cand; break; }
 }
-check(pkgDir != null, `dsh-pet resolvable from ${profileDir}`);
+check(pkgDir != null, `@minybear/dsh-pet resolvable from ${profileDir}`);
 if (pkgDir == null) process.exit(1);
 console.log('       -> ' + pkgDir);
 
@@ -39,7 +39,7 @@ const patch = load(readFileSync(patchFile, 'utf8'));
 check(Array.isArray(patch), 'cordis.patch.yml parses to an array');
 const rows = patch?.flatMap((entry) => entry?.insert ?? []) ?? [];
 const row = rows.find((r) => r?.id === 'ui-pet');
-check(row != null && row.name === 'dsh-pet', "roster row { id: ui-pet, name: 'dsh-pet' } present");
+check(row != null && row.name === '@minybear/dsh-pet', "roster row { id: ui-pet, name: '@minybear/dsh-pet' } present");
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

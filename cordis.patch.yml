@@ -1,7 +1,7 @@
-# dsh-pet's own bundle patch. Loaded when dsh-pet is listed in
+# @minybear/dsh-pet's own bundle patch. Loaded when the package is listed in
 # `dsh.profile.bundles` (added automatically by `dsh plugin --profile web add`).
 # It registers this package into the browser plugin roster; the browser half
 # itself ships via exports["./client"] (see the package.json `dsh.client` block).
 - insert:
     - id: ui-pet
-      name: 'dsh-pet'
+      name: '@minybear/dsh-pet'

@@ -38,7 +38,7 @@
   // Shim the DSH module loader so lib/client.js registers its factory.
   window.__ModuleLoader__ = {
     load({ id, factory }) {
-      if (id !== 'dsh-pet') throw new Error('unexpected module id ' + id);
+      if (id !== '@minybear/dsh-pet') throw new Error('unexpected module id ' + id);
       window.__dshPet = factory(function requireShim(name) {
         if (name === 'react') return window.React;
         throw new Error('unexpected require("' + name + '")');

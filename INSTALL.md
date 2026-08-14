@@ -1,4 +1,4 @@
-# 安装 `dsh-pet` 到 DSH Web GUI
+# 安装 `@minybear/dsh-pet` 到 DSH Web GUI
 
 插件代码已就绪并通过测试；要让宠物出现在正在运行的 DSH 页面里，需要：**安装包 → 登记进浏览器插件花名册 → 重启 `dsh web`**。前两步现在可以一条命令完成（见方式 A），第三步会重启当前 Web 进程（需你执行或确认）。
 
@@ -14,15 +14,15 @@
 ```powershell
 # 在本工作区根目录运行（本地路径安装）
 dsh plugin --profile web add .
-```
 
-或从 GitHub 安装：
+# 或从 npm（发布后）
+dsh plugin --profile web add @minybear/dsh-pet
 
-```powershell
+# 或从 GitHub
 dsh plugin --profile web add github:minybear/DeepSeek-Harness-Pet
 ```
 
-`dsh plugin add` 内部 = `pnpm add`（把包装成 profile 依赖）+ 自动把声明了 `dsh.bundle` 的包加入 `dsh.profile.bundles`。重启时 `dsh-pet` 自带的 `cordis.patch.yml` 会把 `ui-pet` 登记进浏览器花名册，客户端插件半体（`exports["./client"]`）随之被加载。
+`dsh plugin add` 内部 = `pnpm add`（把包装成 profile 依赖）+ 自动把声明了 `dsh.bundle` 的包加入 `dsh.profile.bundles`。重启时 `@minybear/dsh-pet` 自带的 `cordis.patch.yml` 会把 `ui-pet` 登记进浏览器花名册，客户端插件半体（`exports["./client"]`）随之被加载。
 
 > 注意：`dsh plugin add` 走 pnpm，需要网络拉 peer 依赖；离线环境请用方式 B。
 
@@ -34,25 +34,25 @@ powershell -ExecutionPolicy Bypass -File deploy\install.ps1
 ```
 
 脚本做的事（幂等，可反复运行）：
-1. 把 `lib\`、`package.json`、`cordis.patch.yml` 复制到 `%DSH_HOME%\profiles\web\node_modules\dsh-pet\`。
+1. 把 `lib\`、`package.json`、`cordis.patch.yml` 复制到 `%DSH_HOME%\profiles\web\node_modules\@minybear\dsh-pet\`。
 2. 在 `%DSH_HOME%\profiles\web\cordis.patch.yml` 里插入浏览器花名册行：
    ```yaml
    - insert:
        - id: ui-pet
-         name: 'dsh-pet'
+         name: '@minybear/dsh-pet'
    ```
 
 ## 方式 C：完全手动
 
 ```powershell
 $profile = "$env:DSH_HOME\profiles\web"
-New-Item -ItemType Directory -Force -Path "$profile\node_modules\dsh-pet" | Out-Null
-Copy-Item -Recurse -Force lib "$profile\node_modules\dsh-pet\lib"
-Copy-Item -Force package.json "$profile\node_modules\dsh-pet\package.json"
-Copy-Item -Force cordis.patch.yml "$profile\node_modules\dsh-pet\cordis.patch.yml"
+New-Item -ItemType Directory -Force -Path "$profile\node_modules\@minybear\dsh-pet" | Out-Null
+Copy-Item -Recurse -Force lib "$profile\node_modules\@minybear\dsh-pet\lib"
+Copy-Item -Force package.json "$profile\node_modules\@minybear\dsh-pet\package.json"
+Copy-Item -Force cordis.patch.yml "$profile\node_modules\@minybear\dsh-pet\cordis.patch.yml"
 ```
 
-再把 `- insert: [{ id: ui-pet, name: 'dsh-pet' }]` 合并进 `$profile\cordis.patch.yml`。
+再把 `- insert: [{ id: ui-pet, name: '@minybear/dsh-pet' }]` 合并进 `$profile\cordis.patch.yml`。
 
 ## 最后一步：重启并验证
 
@@ -76,10 +76,10 @@ dsh web
 ## 卸载 / 回滚
 
 ```powershell
-# 方式 A 安装的：dsh plugin --profile web remove dsh-pet
-dsh plugin --profile web remove dsh-pet
+# 方式 A 安装的：
+dsh plugin --profile web remove @minybear/dsh-pet
 
 # 方式 B/C 安装的：
-Remove-Item -Recurse -Force "$env:DSH_HOME\profiles\web\node_modules\dsh-pet"
+Remove-Item -Recurse -Force "$env:DSH_HOME\profiles\web\node_modules\@minybear\dsh-pet"
 # 并从 cordis.patch.yml 中删除 ui-pet 的 insert 段
 ```

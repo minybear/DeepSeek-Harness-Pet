@@ -36,7 +36,7 @@ globalThis.window = { __ModuleLoader__: { load: (arg) => { captured = arg; } } }
 await import(pathToFileURL(clientPath).href + `?t=${Date.now()}`);
 
 assert.ok(captured, 'client.js must register via window.__ModuleLoader__.load');
-assert.equal(captured.id, 'dsh-pet');
+assert.equal(captured.id, '@minybear/dsh-pet');
 assert.equal(typeof captured.factory, 'function');
 
 const mod = captured.factory((name) => {

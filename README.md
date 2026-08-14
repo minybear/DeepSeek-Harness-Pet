@@ -1,4 +1,4 @@
-# dsh-pet
+# @minybear/dsh-pet
 
 Codex 风格的「桌面宠物」DSH 客户端插件：在 DeepSeek Harness（DSH）Web GUI 里漂浮一只动画小宠物，由当前会话的 **agent 运行状态**实时驱动（工作 / 等待输入 / 报错 / 刚完成 / 待机）。
 
@@ -41,7 +41,10 @@ node test/client-contract.test.mjs
 ## 安装到 DSH
 
 ```sh
-# 一条命令装包 + 登记浏览器花名册（包自带 dsh.bundle.patch 自注册）
+# 从 npm（发布后）
+dsh plugin --profile web add @minybear/dsh-pet
+
+# 或一条命令装本地 checkout（包自带 dsh.bundle.patch 自注册）
 dsh plugin --profile web add .
 
 # 或从 GitHub
