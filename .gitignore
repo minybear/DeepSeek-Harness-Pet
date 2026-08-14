@@ -1,6 +1,7 @@
 # dependencies & runtime artifacts
 node_modules/
 .verify-dsh/
+.npm-cache/
 *.log
 .DS_Store
 
