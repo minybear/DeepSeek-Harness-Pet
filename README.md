@@ -38,10 +38,16 @@ node test/pet-core.test.mjs
 node test/client-contract.test.mjs
 ```
 
-## 安装到 DSH（后续步骤）
+## 安装到 DSH
 
-1. 安装进 web profile：`dsh plugin --profile web add <本目录>`。
-2. 确认 `profiles/web/package.json` 的 `dsh.profile.bundles` 包含本包名，或在 `dsh plugin` 里加入。
-3. 重启 `dsh web`，刷新页面；宠物应出现在右下角。
+```sh
+# 一条命令装包 + 登记浏览器花名册（包自带 dsh.bundle.patch 自注册）
+dsh plugin --profile web add .
 
-> 注：DSH 客户端插件需宿主端打包（`dsh.client.inject`）与重启后生效；本轮已完成代码与契约一致性验证，实际注入运行留待下一轮（需重启正在运行的 web 服务）。
+# 或从 GitHub
+dsh plugin --profile web add github:minybear/DeepSeek-Harness-Pet
+```
+
+然后重启 `dsh web` 并刷新页面，宠物应出现在右下角。离线环境或无需 pnpm 时，用 `deploy\install.ps1` 手动装；完整步骤见 [`INSTALL.md`](INSTALL.md)。
+
+> 注：客户端插件需宿主端打包（`dsh.client.inject`）与重启后生效。

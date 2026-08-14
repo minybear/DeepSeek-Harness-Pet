@@ -21,6 +21,7 @@ if (-not (Test-Path (Join-Path $src 'package.json'))) {
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item -Recurse -Force (Join-Path $src 'lib') $dest
 Copy-Item -Force (Join-Path $src 'package.json') $dest
+Copy-Item -Force (Join-Path $src 'cordis.patch.yml') $dest
 Write-Host "copied package -> $dest"
 
 # 2. register the browser roster row in the profile patch layer
