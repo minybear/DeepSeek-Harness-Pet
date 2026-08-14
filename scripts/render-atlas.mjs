@@ -3,7 +3,12 @@
 //
 // This is a faithful port of lib/client.js's buildDefaultAsset/drawCell/
 // drawCreature geometry (same cell grid, same shape coordinates), backed by a
-// tiny SDF rasterizer + PNG encoder. Output: assets/dsh-pet-spritesheet.png.
+// tiny SDF rasterizer + PNG encoder.
+//
+// Usage:
+//   node scripts/render-atlas.mjs            # dee -> assets/dsh-pet-spritesheet.png
+//   node scripts/render-atlas.mjs amber      # one palette -> assets/dsh-pet-spritesheet-amber.png
+//   node scripts/render-atlas.mjs --all      # every built-in palette
 
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -12,11 +17,16 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// ---- palettes (must match lib/client.js BUILTIN_PETS) -------------------------
+const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255];
+const PALETTES = {
+	dee: { body: '#35c1a9', belly: '#8ef0da', accent: '#ffb84d' },
+	amber: { body: '#f2a03d', belly: '#ffd9a0', accent: '#35c1a9' },
+	berry: { body: '#9b7ede', belly: '#d9ccff', accent: '#ff8fb2' },
+};
+
 // ---- colors (must match lib/client.js) --------------------------------------
 const C_OUTLINE = [0x1f, 0x24, 0x30, 255];
-const C_BODY = [0x35, 0xc1, 0xa9, 255];
-const C_BELLY = [0x8e, 0xf0, 0xda, 255];
-const C_ACCENT = [0xff, 0xb8, 0x4d, 255];
 const C_EYE = [0x1f, 0x24, 0x30, 255];
 const C_WHITE = [255, 255, 255, 255];
 const C_FOOD = [0xe3, 0x5d, 0x5d, 255];
@@ -86,7 +96,7 @@ function drawEye(g, x, y, mode, px) {
 	}
 }
 
-function drawCreature(g, p) {
+function drawCreature(g, p, pal) {
 	const bw = 48, bh = 50;
 	const bodyH = bh * p.s;
 	const cx = p.cx, cy = p.cy + p.y;
@@ -95,7 +105,7 @@ function drawCreature(g, p) {
 	const tipX = p.droop ? -7 : 0;
 	const tipY = -bodyH / 2 - 9 + (p.droop ? 8 : 0);
 	g.line(cx, cy - bodyH / 2, cx + tipX, cy + tipY, 3, C_OUTLINE);
-	g.fillCircle(cx + tipX, cy + tipY - 4, 4.5, C_ACCENT);
+	g.fillCircle(cx + tipX, cy + tipY - 4, 4.5, pal.accent);
 
 	// feet
 	const fdx = p.foot * 6;
@@ -104,16 +114,16 @@ function drawCreature(g, p) {
 	g.fillRect(cx + bw / 2 - 20 - fdx, cy + footY, 15, 6, C_OUTLINE);
 
 	// body
-	g.fillRoundRect(cx - bw / 2, cy - bodyH / 2, bw, bodyH, 13, C_BODY);
+	g.fillRoundRect(cx - bw / 2, cy - bodyH / 2, bw, bodyH, 13, pal.body);
 	g.strokeRoundRect(cx - bw / 2, cy - bodyH / 2, bw, bodyH, 13, 2.5, C_OUTLINE);
 
 	// belly
-	g.fillRoundRect(cx - bw / 2 + 8, cy - bodyH / 2 + 11, bw - 16, bodyH - 22, 8, C_BELLY);
+	g.fillRoundRect(cx - bw / 2 + 8, cy - bodyH / 2 + 11, bw - 16, bodyH - 22, 8, pal.belly);
 
 	// waving arm
 	if (p.arm) {
-		g.line(cx + bw / 2 - 2, cy + 2, cx + bw / 2 + 8, cy - 12, 6, C_BODY);
-		g.line(cx + bw / 2 + 8, cy - 12, cx + bw / 2 + 12, cy - 22, 6, C_BODY);
+		g.line(cx + bw / 2 - 2, cy + 2, cx + bw / 2 + 8, cy - 12, 6, pal.body);
+		g.line(cx + bw / 2 + 8, cy - 12, cx + bw / 2 + 12, cy - 22, 6, pal.body);
 		g.fillCircle(cx + bw / 2 + 12, cy - 23, 3.5, C_OUTLINE);
 	}
 
@@ -124,12 +134,12 @@ function drawCreature(g, p) {
 
 	// working gear
 	if (p.gear) {
-		g.fillCircle(cx, cy - bodyH / 2 - 16, 4, C_ACCENT);
+		g.fillCircle(cx, cy - bodyH / 2 - 16, 4, pal.accent);
 		g.strokeCircle(cx, cy - bodyH / 2 - 16, 6.5, 1.5, C_OUTLINE);
 	}
 }
 
-function drawCell(pix, g, col, row, state, f, total) {
+function drawCell(pix, g, col, row, state, f, total, pal) {
 	const px = col * CELL.width, py = row * CELL.height;
 	const cx = px + CELL.width / 2;
 	const cy = py + CELL.height / 2 + 4;
@@ -148,7 +158,7 @@ function drawCell(pix, g, col, row, state, f, total) {
 		case 'play': { const seq = [0, -10, -18, -10]; o.y = seq[f] ?? 0; break; }
 		case 'drag': o.eyes = 'wide'; o.dangle = true; o.foot = f % 2 === 0 ? -1 : 1; o.s = 1.04; break;
 	}
-	drawCreature(g, o);
+	drawCreature(g, o, pal);
 
 	// post-draw extras for the interaction states
 	if (state === 'eat') {
@@ -199,15 +209,8 @@ function encodePng(pix) {
 
 // ---- render -------------------------------------------------------------------
 const W = CELL.columns * CELL.width, H = CELL.rows * CELL.height;
-const pix = new Pix(W, H);
-const g = makeG(pix);
 const order = ['idle', 'running-right', 'running-left', 'waving', 'jumping', 'failed', 'waiting', 'running', 'review', 'eat', 'play', 'drag'];
 const countOf = (state) => STATE_FRAME_COUNTS[state] ?? EXTRA_FRAME_COUNTS[state] ?? 1;
-for (let row = 0; row < order.length; row++) {
-	const state = order[row];
-	const count = countOf(state);
-	for (let f = 0; f < count; f++) drawCell(pix, g, f, row, state, f, count);
-}
 
 // ---- verify grid invariants (row tail must be empty, used cells non-empty) ----
 function countOpaque(px, col, row) {
@@ -218,19 +221,42 @@ function countOpaque(px, col, row) {
 	}
 	return n;
 }
-let ok = true;
-for (let row = 0; row < order.length; row++) {
-	const state = order[row];
-	const count = countOf(state);
-	for (let col = 0; col < CELL.columns; col++) {
-		const opaque = countOpaque(pix, col, row);
-		if (col < count && opaque === 0) { console.error(`FAIL: ${state} col ${col} is empty`); ok = false; }
-		if (col >= count && opaque !== 0) { console.error(`FAIL: ${state} col ${col} should be empty, got ${opaque} opaque px`); ok = false; }
-	}
-}
-console.log(ok ? 'atlas invariants: PASS' : 'atlas invariants: FAIL');
 
-const out = resolve(here, '../assets/dsh-pet-spritesheet.png');
-mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, encodePng(pix));
-console.log(`wrote ${out} (${W}x${H})`);
+function renderPalette(key) {
+	const pal = { body: hex(PALETTES[key].body), belly: hex(PALETTES[key].belly), accent: hex(PALETTES[key].accent) };
+	const pix = new Pix(W, H);
+	const g = makeG(pix);
+	for (let row = 0; row < order.length; row++) {
+		const state = order[row];
+		const count = countOf(state);
+		for (let f = 0; f < count; f++) drawCell(pix, g, f, row, state, f, count, pal);
+	}
+
+	let ok = true;
+	for (let row = 0; row < order.length; row++) {
+		const state = order[row];
+		const count = countOf(state);
+		for (let col = 0; col < CELL.columns; col++) {
+			const opaque = countOpaque(pix, col, row);
+			if (col < count && opaque === 0) { console.error(`FAIL: ${key}/${state} col ${col} is empty`); ok = false; }
+			if (col >= count && opaque !== 0) { console.error(`FAIL: ${key}/${state} col ${col} should be empty, got ${opaque} opaque px`); ok = false; }
+		}
+	}
+	console.log(`${key}: atlas invariants ${ok ? 'PASS' : 'FAIL'}`);
+
+	const name = key === 'dee' ? 'dsh-pet-spritesheet.png' : `dsh-pet-spritesheet-${key}.png`;
+	const out = resolve(here, '../assets', name);
+	mkdirSync(dirname(out), { recursive: true });
+	writeFileSync(out, encodePng(pix));
+	console.log(`wrote ${out} (${W}x${H})`);
+	return ok;
+}
+
+const arg = process.argv[2] ?? 'dee';
+const keys = arg === '--all' ? Object.keys(PALETTES) : [arg];
+let allOk = true;
+for (const key of keys) {
+	if (!PALETTES[key]) { console.error(`unknown palette "${key}" (have: ${Object.keys(PALETTES).join(', ')})`); process.exit(1); }
+	if (!renderPalette(key)) allOk = false;
+}
+process.exit(allOk ? 0 : 1);

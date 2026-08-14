@@ -9,7 +9,8 @@
   h1 { font-size: 18px; }
   h3 { font-size: 14px; color: #b9c1d8; }
   .stage { position: relative; height: 300px; background: #23283a; border-radius: 14px; overflow: hidden; margin: 12px 0; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; align-items: center; }
+  .row span { color: #8b93ab; font-size: 12px; }
   button { background: #2b3248; color: #e6e8ef; border: 1px solid #3b435e; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
   button:hover { background: #364060; }
   button.on { background: #35c1a9; color: #0c1a17; border-color: #35c1a9; font-weight: 600; }
@@ -19,16 +20,27 @@
 <body>
 <div class="wrap">
   <h1>dsh-pet 本地演示（不依赖 DSH）</h1>
-  <p>舞台里的宠物由 <code>lib/client.js</code> 的真实 React 组件渲染；用按钮切换模拟的 agent 状态。</p>
+  <p>舞台里的宠物由 <code>lib/client.js</code> 的真实 React 组件渲染；用按钮切换模拟的 agent 状态。点击宠物可打开菜单（喂食 / 玩耍 / 设置），拖拽可移动（按方向播放 running-left/right）。</p>
   <div class="row" id="buttons">
+    <span>状态：</span>
     <button data-mode="idle">idle 待机</button>
     <button data-mode="running">running 工作</button>
     <button data-mode="waiting">waiting 等待输入</button>
     <button data-mode="failed">failed 报错</button>
     <button data-mode="completed">completed 就绪</button>
+    <button id="wave">wave 打招呼（换会话）</button>
+  </div>
+  <div class="row" id="pets">
+    <span>宠物：</span>
+    <button data-pet="dee">Dee（青绿）</button>
+    <button data-pet="amber">Amber（琥珀）</button>
+    <button data-pet="berry">Berry（莓紫）</button>
+    <span>动画：</span>
+    <button data-motion="auto" class="on">自动</button>
+    <button data-motion="reduced">减少动态</button>
   </div>
   <div class="stage" id="stage"></div>
-  <h3>Spritesheet 图集（8 列 × 9 行，每行一个状态）</h3>
+  <h3>Spritesheet 图集（8 列 × 12 行，前 9 行为 Codex V1 状态，后 3 行为 eat/play/drag 交互）</h3>
   <div class="sheet" id="sheet"></div>
 </div>
 
@@ -60,18 +72,18 @@
     completed: { running: false, completed: true,  error: null, waiting: false },
   };
 
-  function Stage({ mode }) {
+  function Stage({ mode, sessionId, nonce }) {
     const m = MODES[mode];
     const snapshot = React.useMemo(() => ({
-      current: 'demo-session',
+      current: sessionId,
       byId: {
-        'demo-session': {
+        [sessionId]: {
           running: m.running,
           pendingInteraction: m.waiting ? { kind: 'approval' } : undefined,
           completed: m.completed,
         },
       },
-    }), [m]);
+    }), [m, sessionId]);
     const useSessions = React.useCallback((sel) => sel(snapshot), [snapshot]);
     const sessionsService = React.useMemo(() => ({
       binding: () => ({
@@ -83,31 +95,48 @@
     }), [m]);
 
     return React.createElement('div', { style: { position: 'relative', height: 300 } },
-      React.createElement(mod.PetOverlay, { useSessions, sessionsService })
+      React.createElement(mod.PetOverlay, { key: nonce, useSessions, sessionsService })
     );
   }
 
   const root = ReactDOM.createRoot(document.getElementById('stage'));
-  function renderStage(mode) {
-    root.render(React.createElement(Stage, { mode }));
-    document.querySelectorAll('button[data-mode]').forEach((b) => {
-      b.classList.toggle('on', b.dataset.mode === mode);
-    });
+  const ui = { mode: 'idle', session: 1, nonce: 0 };
+  function renderStage() {
+    root.render(React.createElement(Stage, { mode: ui.mode, sessionId: 'demo-' + ui.session, nonce: ui.nonce }));
+    document.querySelectorAll('button[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === ui.mode));
   }
   document.querySelectorAll('button[data-mode]').forEach((b) => {
-    b.addEventListener('click', () => renderStage(b.dataset.mode));
+    b.addEventListener('click', () => { ui.mode = b.dataset.mode; renderStage(); });
   });
-  renderStage('idle');
+  // switching sessions triggers the Codex SessionStart wave
+  document.getElementById('wave').addEventListener('click', () => { ui.session += 1; renderStage(); });
+  // pet / motion switches persist to localStorage like the real settings, then remount
+  document.querySelectorAll('button[data-pet]').forEach((b) => {
+    b.addEventListener('click', () => {
+      localStorage.setItem('dsh-pet:petId', JSON.stringify(b.dataset.pet));
+      ui.nonce += 1;
+      renderStage();
+    });
+  });
+  document.querySelectorAll('button[data-motion]').forEach((b) => {
+    b.addEventListener('click', () => {
+      localStorage.setItem('dsh-pet:motion', JSON.stringify(b.dataset.motion));
+      document.querySelectorAll('button[data-motion]').forEach((x) => x.classList.toggle('on', x === b));
+      ui.nonce += 1;
+      renderStage();
+    });
+  });
+  renderStage();
 
-  // Contact sheet: the full generated atlas.
+  // Contact sheet: the full generated atlas of the default pet.
   const asset = mod.buildDefaultAsset();
   const scale = 0.55;
   const sheetW = Math.round(8 * 96 * scale);
-  const sheetH = Math.round(9 * 104 * scale);
+  const sheetH = Math.round(12 * 104 * scale);
   const sheet = document.getElementById('sheet');
   sheet.style.width = sheetW + 'px';
   sheet.style.height = sheetH + 'px';
-  sheet.style.backgroundImage = 'url(' + asset.dataUrl + ')';
+  sheet.style.backgroundImage = 'url(' + asset.imageUrl + ')';
   sheet.style.backgroundSize = sheetW + 'px ' + sheetH + 'px';
 </script>
 </body>

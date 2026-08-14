@@ -14,6 +14,7 @@ const React = {
   useLayoutEffect: () => {},
   useRef: (init) => ({ current: init }),
   useCallback: (fn) => fn,
+  useMemo: (fn) => fn(),
   useSyncExternalStore: (_sub, getSnap) => getSnap(),
 };
 
@@ -50,6 +51,10 @@ assert.equal(typeof mod.apply, 'function');
 assert.deepEqual(mod.inject, ['slots', 'sessions']);
 assert.equal(typeof mod.PetOverlay, 'function');
 assert.equal(typeof mod.buildDefaultAsset, 'function');
+assert.ok(mod.__petCore, 'the inlined pet-core copy must be exported for parity tests');
+assert.equal(typeof mod.__petCore.derivePetState, 'function');
+assert.equal(typeof mod.__petCore.parsePetJson, 'function');
+assert.equal(typeof mod.__petCore.decaySignals, 'function');
 
 const registrations = [];
 const fakeCtx = {
@@ -67,17 +72,27 @@ assert.equal(registrations[0].opts.id, 'dsh-pet');
 assert.equal(typeof registrations[0].Component, 'function');
 assert.equal(registrations[0].opts.inject().sessionsService, fakeCtx.sessions);
 
-// --- built-in asset: Codex-format grid via `frame` override ------------------
+// --- built-in pets: three palettes, Codex-format grid via `frame` override ---
+assert.deepEqual(Object.keys(mod.BUILTIN_PETS).sort(), ['amber', 'berry', 'dee']);
+
 const asset = mod.buildDefaultAsset();
 assert.equal(asset.pet.frame.columns, 8);
 assert.equal(asset.pet.frame.rows, 12);
 assert.equal(asset.pet.totalFrames, 96);
 assert.equal(asset.pet.displayName.length > 0, true);
-assert.ok(asset.dataUrl.startsWith('data:image/png'));
+assert.ok(asset.imageUrl.startsWith('data:image/png'));
 // interaction states are declared through the official animations override
 assert.deepEqual(asset.pet.animations.eat.frames, [72, 73, 74, 75]);
 assert.deepEqual(asset.pet.animations.play.frames, [80, 81, 82, 83]);
 assert.deepEqual(asset.pet.animations.drag.frames, [88, 89, 90, 91]);
+
+// palette variants produce distinct pets on the same grid
+const amber = mod.buildDefaultAsset('amber');
+assert.equal(amber.pet.id, 'dsh-pet-amber');
+assert.equal(amber.pet.frame.columns, 8);
+assert.notEqual(amber.pet.displayName, asset.pet.displayName);
+// unknown palette falls back to the default pet
+assert.equal(mod.buildDefaultAsset('nope').pet.id, 'dsh-pet-dee');
 
 // --- overlay component: renders null without a mounted asset (graceful) ------
 const el = registrations[0].Component({

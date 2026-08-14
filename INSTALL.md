@@ -61,17 +61,19 @@ Copy-Item -Force cordis.patch.yml "$profile\node_modules\@minybear\dsh-pet\cordi
 dsh web
 ```
 
-刷新 `http://127.0.0.1:3080`。预期：右下角出现青绿色小宠物「Dee」，agent 运行时进入「Working」工作动画，等待审批时「Needs input」，报错「Blocked」，完成时短暂「Done!」庆祝，点击宠物会「Hi!」挥手。
+刷新 `http://127.0.0.1:3080`。预期：右下角出现青绿色小宠物「Dee」，agent 运行时进入「Running」工作动画，等待审批时「Needs input」，报错「Blocked」，完成时短暂「Done!」庆祝，切换会话时「Hi!」挥手，点击宠物弹出菜单（喂食/玩耍/设置）。
 
 ## 验证清单
 
 | 验证项 | 方法 |
 | --- | --- |
-| 纯逻辑 / 状态机 / 帧索引 | `node test\pet-core.test.mjs` |
+| 纯逻辑 / 状态机 / 帧索引 / 状态存活期 | `node test\pet-core.test.mjs` |
 | 插件契约 / slot 注册 | `node test\client-contract.test.mjs` |
-| 精灵图集网格结构 | `node scripts\render-atlas.mjs`（输出 `assets\dsh-pet-spritesheet.png` 并自检） |
+| client.js 内联副本与 pet-core 一致性 | `node test\parity.test.mjs` |
+| 精灵图集网格结构（三只内置宠物） | `node scripts\render-atlas.mjs --all`（输出 `assets\` 下各 PNG 并自检） |
 | 配置层是否正确 | `dsh --profile web --dump-config`（能看到 `ui-pet` 行且不报错） |
-| 实际渲染 | 打开 `deploy\demo.html`（浏览器本地演示，可切换各状态） |
+| 安装结果体检 | `node scripts\verify-install.mjs` |
+| 实际渲染 | 打开 `deploy\demo.html`（浏览器本地演示，可切换各状态/宠物/减少动态） |
 
 ## 卸载 / 回滚
 

@@ -2,43 +2,50 @@
 
 Codex 风格的「桌面宠物」DSH 客户端插件：在 DeepSeek Harness（DSH）Web GUI 里漂浮一只动画小宠物，由当前会话的 **agent 运行状态**实时驱动（工作 / 等待输入 / 报错 / 刚完成 / 待机）。
 
-> 复刻对象：OpenAI Codex 桌面版的 Pets 功能。调研结论见 [`docs/Codex-Pet-能力分析.md`](docs/Codex-Pet-能力分析.md) 与 [`docs/复刻方案.md`](docs/复刻方案.md)。
+> 复刻对象：OpenAI Codex 桌面版的 Pets 功能。调研结论见 [`docs/Codex-Pet-能力分析.md`](docs/Codex-Pet-能力分析.md) 与 [`docs/复刻方案.md`](docs/复刻方案.md)；与 Codex 官方能力的逐项对照见 [`docs/差距分析.md`](docs/差距分析.md)。
 
 ## 能力
 
-- **漂浮宠物**：注册进 DSH 的 `shell.overlay` 槽（帧级浮动层，可点透，右下角常驻）。
-- **状态驱动**：读当前会话状态并映射到 Codex 的 9 状态动画行：
+- **漂浮宠物**：注册进 DSH 的 `shell.overlay` 槽（帧级浮动层，可点透，右下角常驻，可拖拽换位）。
+- **状态驱动**：读当前会话状态并映射到 Codex 的 9 状态动画行；会话信号按 Codex `ambient.rs` 的**存活期**衰减（Running 3min / Failed 1h / Waiting 24h / Review 7d，超时回退 idle）：
 
   | DSH 信号 | 宠物状态（行） | 状态标签 |
   | --- | --- | --- |
-  | `running === true` | running（7） | Working |
+  | `running === true` | running（7） | Running |
   | `pendingInteraction` | waiting（6） | Needs input |
   | `lastAgentError` | failed（5） | Blocked |
   | running `true→false` 边沿 | jumping（4） | Done!（约 2.6s） |
-  | `completed` 且未选 | review（8） | Ready |
+  | `completed` | review（8） | Ready |
+  | 切换/打开会话 | waving（3） | Hi!（约 1.7s） |
+  | 拖拽移动中 | running-left/right（1/2，按方向） | （无） |
   | 无活动 | idle（0） | （无） |
 
+- **减少动态**：跟随系统 `prefers-reduced-motion`，或在设置里手动锁定「完整 / 减少动态」；减少动态时按 Codex 行为固定显示 idle 第一帧。
 - **交互**：
-  - 点击 → 弹出菜单：🍗 喂食（`eat`）、🎾 玩耍（`play`）、⚙ 尺寸/透明度设置。
-  - 拖拽 → 移动宠物位置（`drag` 姿态，位置持久化到 localStorage）。
-- **外观设置**：尺寸（0.5–1.5）、透明度（0.2–1），持久化到 `localStorage`。
+  - 点击 → 弹出菜单：🍗 喂食（`eat`）、🎾 玩耍（`play`）、⚙ 设置。
+  - 拖拽 → 移动宠物位置（按拖动方向播放官方 running-left/right 行走动画，静止时为 `drag` 姿态，位置持久化到 localStorage）。
+- **多宠物**：内置 Dee（青绿）/ Amber（琥珀）/ Berry（莓紫）三只同模配色宠物，设置面板一键切换。
+- **自定义宠物导入**：设置面板可导入标准 **Codex 宠物包**（`pet.json` + 图集图片，如 `~/.codex/pets/` 下 hatch-pet 生成的宠物），校验后存入 localStorage 并立即可选；可删除。无额外交互行的官方 9 行图集会自动回退（交互态播放 idle 行）。
+- **外观设置**：尺寸（0.5–1.5）、透明度（0.2–1）、动画模式、宠物选择，全部持久化到 `localStorage`。
 - **Codex 兼容包格式**：宠物由 `pet.json`（`id/displayName/description/spritesheetPath/frame/animations`）+ 一张**行优先图集**（无独立 atlas 文件，帧索引 `index = row×columns + col`）描述；内置默认宠物在运行时用 canvas 生成。前 9 行为 Codex V1 官方 9 状态，第 9–11 行为交互状态（eat/play/drag），经官方 `frame` 覆写（96×104×8×12）与 `animations` 字段声明。
 
 ## 结构
 
 ```
-lib/pet-core.js    纯逻辑（Node 可测）：pet.json 解析 + 帧切片 + 状态机
+lib/pet-core.js    纯逻辑（Node 可测）：pet.json 解析 + 帧切片 + 状态机 + 状态存活期
 lib/index.js       host 侧 apply（空，纯 UI 插件）
 lib/client.js      浏览器侧：window.__ModuleLoader__.load + apply/inject + PetOverlay + 精灵生成
-test/*.test.mjs    Node 单测（pet-core + client 契约）
-docs/              调研与方案
+test/*.test.mjs    Node 单测（pet-core + client 契约 + 双副本一致性）
+docs/              调研、方案与差距分析
 ```
+
+> 注：`client.js` 内联了一份 pet-core（DSH 模块加载器无法解析包内文件），`test/parity.test.mjs` 会对两份副本做全量行为一致性校验，防止分叉。
 
 ## 测试
 
 ```sh
-node test/pet-core.test.mjs
-node test/client-contract.test.mjs
+npm test            # 依次跑 pet-core / client-contract / parity
+node scripts/render-atlas.mjs --all   # 软渲染三只内置宠物图集并自检网格不变量
 ```
 
 ## 安装到 DSH
