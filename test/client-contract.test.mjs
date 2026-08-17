@@ -77,8 +77,12 @@ assert.equal(typeof registrations[1].Component, 'function');
 assert.equal(registrations[0].opts.inject().sessionsService, fakeCtx.sessions);
 assert.equal(registrations[1].opts.inject().sessionsService, fakeCtx.sessions);
 
-// --- built-in pets: three palettes, Codex-format grid via `frame` override ---
-assert.deepEqual(Object.keys(mod.BUILTIN_PETS).sort(), ['amber', 'berry', 'dee']);
+// --- built-in pets: five entries, Codex-format grid via `frame` override ---
+assert.deepEqual(Object.keys(mod.BUILTIN_PETS).sort(), ['amber', 'berry', 'bluewhale', 'dee', 'graywhale']);
+// the two whales are the DeepSeek / DeepSeek Harness logos
+assert.equal(mod.BUILTIN_PETS.graywhale.shape, 'whale');
+assert.equal(mod.BUILTIN_PETS.bluewhale.shape, 'whale');
+assert.equal(mod.BUILTIN_PETS.bluewhale.palette.body, '#4d6bfe');
 
 const asset = mod.buildDefaultAsset();
 assert.equal(asset.pet.frame.columns, 8);
@@ -96,6 +100,10 @@ const amber = mod.buildDefaultAsset('amber');
 assert.equal(amber.pet.id, 'dsh-pet-amber');
 assert.equal(amber.pet.frame.columns, 8);
 assert.notEqual(amber.pet.displayName, asset.pet.displayName);
+// whales build on the same grid too
+const whale = mod.buildDefaultAsset('bluewhale');
+assert.equal(whale.pet.id, 'dsh-pet-bluewhale');
+assert.equal(whale.pet.totalFrames, 96);
 // unknown palette falls back to the default pet
 assert.equal(mod.buildDefaultAsset('nope').pet.id, 'dsh-pet-dee');
 

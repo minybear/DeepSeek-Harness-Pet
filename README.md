@@ -24,7 +24,7 @@ Codex 风格的「桌面宠物」DSH 客户端插件：在 DeepSeek Harness（DS
 - **交互**：
   - 点击 → 弹出菜单：🍗 喂食（`eat`）、🎾 玩耍（`play`）、⚙ 设置。
   - 拖拽 → 移动宠物位置（按拖动方向播放官方 running-left/right 行走动画，静止时为 `drag` 姿态，位置持久化到 localStorage）。
-- **多宠物**：内置 Dee（青绿）/ Amber（琥珀）/ Berry（莓紫）三只同模配色宠物，设置面板一键切换。
+- **多宠物**：内置五只宠物——Dee（青绿）/ Amber（琥珀）/ Berry（莓紫）同模配色，以及**灰鲸**（DeepSeek Harness logo 造型）/ **蓝鲸**（DeepSeek 官方 logo 造型，品牌蓝）两只侧视鲸鱼，设置面板一键切换。
 - **自定义宠物导入**：设置面板可导入标准 **Codex 宠物包**（`pet.json` + 图集图片，如 `~/.codex/pets/` 下 hatch-pet 生成的宠物），校验后存入 localStorage 并立即可选；可删除。无额外交互行的官方 9 行图集会自动回退（交互态播放 idle 行）。
 - **外观设置**：尺寸（0.5–1.5）、透明度（0.2–1）、动画模式、宠物选择，全部持久化到 `localStorage`。
 - **Codex 兼容包格式**：宠物由 `pet.json`（`id/displayName/description/spritesheetPath/frame/animations`）+ 一张**行优先图集**（无独立 atlas 文件，帧索引 `index = row×columns + col`）描述；内置默认宠物在运行时用 canvas 生成。前 9 行为 Codex V1 官方 9 状态，第 9–11 行为交互状态（eat/play/drag），经官方 `frame` 覆写（96×104×8×12）与 `animations` 字段声明。

@@ -23,7 +23,10 @@ const PALETTES = {
 	dee: { body: '#35c1a9', belly: '#8ef0da', accent: '#ffb84d' },
 	amber: { body: '#f2a03d', belly: '#ffd9a0', accent: '#35c1a9' },
 	berry: { body: '#9b7ede', belly: '#d9ccff', accent: '#ff8fb2' },
+	graywhale: { body: '#8b95a5', belly: '#dde3ec', accent: '#5b6472' },
+	bluewhale: { body: '#4d6bfe', belly: '#c9d6ff', accent: '#2f49c8' },
 };
+const SHAPES = { dee: 'blob', amber: 'blob', berry: 'blob', graywhale: 'whale', bluewhale: 'whale' };
 
 // ---- colors (must match lib/client.js) --------------------------------------
 const C_OUTLINE = [0x1f, 0x24, 0x30, 255];
@@ -31,6 +34,7 @@ const C_EYE = [0x1f, 0x24, 0x30, 255];
 const C_WHITE = [255, 255, 255, 255];
 const C_FOOD = [0xe3, 0x5d, 0x5d, 255];
 const C_BALL = [0x5b, 0x8d, 0xef, 255];
+const C_WATER = hex('#9fd8ff');
 
 const CELL = { width: 96, height: 104, columns: 8, rows: 12 };
 const STATE_FRAME_COUNTS = {
@@ -64,6 +68,14 @@ const sdRoundRect = (px, py, x, y, w, h, r) => {
 	return Math.hypot(ox, oy) + Math.min(Math.max(qx, qy), 0) - r;
 };
 const sdCircle = (px, py, cx, cy, r) => Math.hypot(px - cx, py - cy) - r;
+const sdEllipse = (px, py, cx, cy, rx, ry, rot) => {
+	const cos = Math.cos(-(rot || 0)), sin = Math.sin(-(rot || 0));
+	const dx = px - cx, dy = py - cy;
+	const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
+	// normalized ellipse distance (approximation, fine for solid fills)
+	const k = Math.hypot(lx / rx, ly / ry);
+	return (k - 1) * Math.min(rx, ry);
+};
 const sdSegment = (px, py, ax, ay, bx, by) => {
 	const vx = bx - ax, vy = by - ay;
 	const len2 = vx * vx + vy * vy;
@@ -79,20 +91,21 @@ function makeG(pix) {
 		fillRect(x, y, w, h, c) { pix.fill(() => true, x, y, x + w, y + h, c); },
 		fillCircle(cx, cy, r, c) { pix.fill((px, py) => sdCircle(px, py, cx, cy, r) <= 0, cx - r, cy - r, cx + r, cy + r, c); },
 		strokeCircle(cx, cy, r, lw, c) { pix.fill((px, py) => Math.abs(sdCircle(px, py, cx, cy, r)) <= lw / 2, cx - r - lw, cy - r - lw, cx + r + lw, cy + r + lw, c); },
+		fillEllipse(cx, cy, rx, ry, rot, c) { pix.fill((px, py) => sdEllipse(px, py, cx, cy, rx, ry, rot) <= 0, cx - rx - 2, cy - ry - 2, cx + rx + 2, cy + ry + 2, c); },
 		line(ax, ay, bx, by, lw, c) { pix.fill((px, py) => sdSegment(px, py, ax, ay, bx, by) <= lw / 2, Math.min(ax, bx) - lw, Math.min(ay, by) - lw, Math.max(ax, bx) + lw, Math.max(ay, by) + lw, c); },
 	};
 }
 
 // ---- draw port (absolute coords; identical geometry to lib/client.js) --------
-function drawEye(g, x, y, mode, px) {
-	if (mode === 'blink') g.fillRect(x - 5, y - 1, 10, 2, C_EYE);
+function drawEye(g, x, y, mode, px, es = 1) {
+	if (mode === 'blink') g.fillRect(x - 5 * es, y - 1 * es, 10 * es, 2 * es, C_EYE);
 	else if (mode === 'x') {
-		g.line(x - 3.5, y - 3.5, x + 3.5, y + 3.5, 2, C_EYE);
-		g.line(x + 3.5, y - 3.5, x - 3.5, y + 3.5, 2, C_EYE);
+		g.line(x - 3.5 * es, y - 3.5 * es, x + 3.5 * es, y + 3.5 * es, 2, C_EYE);
+		g.line(x + 3.5 * es, y - 3.5 * es, x - 3.5 * es, y + 3.5 * es, 2, C_EYE);
 	} else {
-		const r = mode === 'narrow' ? 2.6 : (mode === 'wide' ? 5 : 4);
-		g.fillCircle(x + px, y, r, C_EYE);
-		if (mode !== 'narrow') g.fillCircle(x + px + 1.4, y - 1.4, 1.4, C_WHITE);
+		const r = (mode === 'narrow' ? 2.6 : (mode === 'wide' ? 5 : 4)) * es;
+		g.fillCircle(x + px * es, y, r, C_EYE);
+		if (mode !== 'narrow') g.fillCircle(x + (px + 1.4) * es, y - 1.4 * es, 1.4 * es, C_WHITE);
 	}
 }
 
@@ -139,26 +152,117 @@ function drawCreature(g, p, pal) {
 	}
 }
 
-function drawCell(pix, g, col, row, state, f, total, pal) {
+// ---- whale port (mirrors drawWhale in lib/client.js; facing mirrored by
+// negating x offsets around cx) ----------------------------------------------
+function drawWhale(g, p, pal) {
+	const cx = p.cx, cy = p.cy + p.y;
+	const fx = (dx) => cx + dx * (p.facing || 1); // local -> screen x
+
+	// tail fluke (behind the body): two rotated ellipses at the rear
+	const wag = (p.tailWag || 0) * 0.22;
+	g.fillEllipse(fx(-29), cy - 5, 10, 4.4, (-0.55 + wag) * (p.facing || 1), pal.body);
+	g.fillEllipse(fx(-29), cy + 5, 10, 4.4, (0.55 + wag) * (p.facing || 1), pal.body);
+
+	// body + head (squash via scaleY on ry)
+	g.fillEllipse(fx(-2), cy, 24, 16 * p.s, 0, pal.body);
+	g.fillCircle(fx(13), cy - 3 * p.s, 14 * p.s, pal.body);
+	// belly
+	g.fillEllipse(fx(3), cy + 7, 15, 6.5, 0, pal.belly);
+
+	// pectoral fin
+	if (p.flipper) g.fillEllipse(fx(4), cy, 8, 3.4, -1.15 * (p.facing || 1), pal.accent);
+	else g.fillEllipse(fx(0), cy + 10, 7, 3, 0.45 * (p.facing || 1), pal.accent);
+
+	// eye + smile
+	drawEye(g, fx(13), cy - 8, p.eyes, p.px * (p.facing || 1), 0.7);
+	for (let i = 0; i < 3; i++) {
+		const a = 0.25 + (Math.PI * 0.7 - 0.25) * (i / 2);
+		g.fillCircle(fx(15) + Math.cos(a) * 5 * (p.facing || 1), cy - 1 + Math.sin(a) * 5, 0.9, C_OUTLINE);
+	}
+
+	// blowhole spout / droop
+	if (p.droopSpout) {
+		g.line(fx(6), cy - 15, fx(11), cy - 12, 2, C_WATER);
+		g.line(fx(11), cy - 12, fx(13), cy - 7, 2, C_WATER);
+	} else if (p.spout > 0) {
+		const t = p.spout;
+		g.line(fx(6), cy - 15, fx(6), cy - 15 - 9 * t, 2, C_WATER);
+		g.fillCircle(fx(6), cy - 17 - 10 * t, 1.4 + 1.6 * t, C_WATER);
+		g.fillCircle(fx(3), cy - 15 - 12 * t, 1 + 1.2 * t, C_WATER);
+		g.fillCircle(fx(9), cy - 15 - 12 * t, 1 + 1.2 * t, C_WATER);
+	}
+
+	// bubbles while working
+	if (p.bubbles) {
+		const rise = (p.frame / Math.max(1, p.total)) * 6;
+		g.strokeCircle(fx(19), cy - 12 - rise, 1.6, 1.4, C_WATER);
+		g.strokeCircle(fx(22), cy - 18 - rise, 2.1, 1.4, C_WATER);
+		g.strokeCircle(fx(18), cy - 24 - rise, 1.3, 1.4, C_WATER);
+	}
+}
+
+function drawCell(pix, g, col, row, state, f, total, pal, shape) {
 	const px = col * CELL.width, py = row * CELL.height;
 	const cx = px + CELL.width / 2;
 	const cy = py + CELL.height / 2 + 4;
-	let o = { cx, cy, s: 1, y: 0, eyes: 'open', px: 0, arm: false, foot: 0, flat: false, droop: false, gear: false, dangle: false };
+	const blob = { cx, cy, s: 1, y: 0, eyes: 'open', px: 0, arm: false, foot: 0, flat: false, droop: false, gear: false, dangle: false };
+	const whale = { cx, cy: cy - 2, s: 1, y: 0, eyes: 'open', px: 0, facing: 1, spout: 0, droopSpout: false, flipper: false, tailWag: 0, flat: false, bubbles: false, frame: f, total };
 	switch (state) {
-		case 'idle': o.s = 1 + 0.03 * Math.sin((f / total) * Math.PI * 2); if (f % 3 === 2) o.eyes = 'blink'; break;
-		case 'running-right': o.foot = f % 2 === 0 ? 1 : -1; o.px = 1.5; break;
-		case 'running-left': o.foot = f % 2 === 0 ? -1 : 1; o.px = -1.5; break;
-		case 'waving': o.arm = true; o.s = f % 2 === 0 ? 1.03 : 1; break;
-		case 'jumping': { const seq = [0, -14, -24, -14, 0]; o.y = seq[f] ?? 0; o.s = f === 0 ? 1.08 : f === 4 ? 0.9 : 1; break; }
-		case 'failed': o.flat = true; o.s = 0.72; o.eyes = 'x'; o.droop = true; o.y = 8; break;
-		case 'waiting': o.px = f % 4 < 2 ? -2 : 2; o.s = 1.02; break;
-		case 'running': o.eyes = 'narrow'; o.gear = true; o.s = 1 + 0.02 * Math.sin((f / total) * Math.PI * 2); o.px = 0.5; break;
-		case 'review': { const scan = [-2.5, -1.2, 0, 1.2, 2.5, 1.2]; o.px = scan[f] ?? 0; break; }
-		case 'eat': o.eyes = 'narrow'; o.s = 1.02; break;
-		case 'play': { const seq = [0, -10, -18, -10]; o.y = seq[f] ?? 0; break; }
-		case 'drag': o.eyes = 'wide'; o.dangle = true; o.foot = f % 2 === 0 ? -1 : 1; o.s = 1.04; break;
+		case 'idle':
+			blob.s = 1 + 0.03 * Math.sin((f / total) * Math.PI * 2); if (f % 3 === 2) blob.eyes = 'blink';
+			whale.s = 1 + 0.03 * Math.sin((f / total) * Math.PI * 2); if (f % 3 === 2) whale.eyes = 'blink';
+			whale.spout = [0.15, 0.4, 0.85, 0.95, 0.5, 0.2][f % 6];
+			break;
+		case 'running-right':
+			blob.foot = f % 2 === 0 ? 1 : -1; blob.px = 1.5;
+			whale.facing = 1; whale.tailWag = f % 2 === 0 ? 1 : -1; whale.px = 1.5;
+			break;
+		case 'running-left':
+			blob.foot = f % 2 === 0 ? -1 : 1; blob.px = -1.5;
+			whale.facing = -1; whale.tailWag = f % 2 === 0 ? 1 : -1; whale.px = 1.5;
+			break;
+		case 'waving':
+			blob.arm = true; blob.s = f % 2 === 0 ? 1.03 : 1;
+			whale.flipper = true; whale.s = f % 2 === 0 ? 1.03 : 1;
+			break;
+		case 'jumping': {
+			const seq = [0, -14, -24, -14, 0]; blob.y = seq[f] ?? 0; blob.s = f === 0 ? 1.08 : f === 4 ? 0.9 : 1;
+			const wseq = [0, -16, -28, -16, 0]; whale.y = wseq[f] ?? 0; whale.s = f === 0 ? 1.06 : f === 4 ? 0.92 : 1;
+			break;
+		}
+		case 'failed':
+			blob.flat = true; blob.s = 0.72; blob.eyes = 'x'; blob.droop = true; blob.y = 8;
+			whale.flat = true; whale.s = 0.72; whale.eyes = 'x'; whale.droopSpout = true; whale.y = 8;
+			break;
+		case 'waiting':
+			blob.px = f % 4 < 2 ? -2 : 2; blob.s = 1.02;
+			whale.px = f % 4 < 2 ? -1.5 : 1.5; whale.s = 1.02;
+			break;
+		case 'running':
+			blob.eyes = 'narrow'; blob.gear = true; blob.s = 1 + 0.02 * Math.sin((f / total) * Math.PI * 2); blob.px = 0.5;
+			whale.eyes = 'narrow'; whale.bubbles = true; whale.s = 1 + 0.02 * Math.sin((f / total) * Math.PI * 2); whale.px = 0.5;
+			break;
+		case 'review': {
+			const scan = [-2.5, -1.2, 0, 1.2, 2.5, 1.2]; blob.px = scan[f] ?? 0;
+			whale.px = (scan[f] ?? 0) * 0.7;
+			break;
+		}
+		case 'eat':
+			blob.eyes = 'narrow'; blob.s = 1.02;
+			whale.eyes = 'narrow'; whale.s = 1.02;
+			break;
+		case 'play': {
+			const seq = [0, -10, -18, -10]; blob.y = seq[f] ?? 0;
+			whale.y = seq[f] ?? 0;
+			break;
+		}
+		case 'drag':
+			blob.eyes = 'wide'; blob.dangle = true; blob.foot = f % 2 === 0 ? -1 : 1; blob.s = 1.04;
+			whale.eyes = 'wide'; whale.tailWag = f % 2 === 0 ? -1 : 1; whale.s = 1.04;
+			break;
 	}
-	drawCreature(g, o, pal);
+	if (shape === 'whale') drawWhale(g, whale, pal);
+	else drawCreature(g, blob, pal);
 
 	// post-draw extras for the interaction states
 	if (state === 'eat') {
@@ -224,12 +328,13 @@ function countOpaque(px, col, row) {
 
 function renderPalette(key) {
 	const pal = { body: hex(PALETTES[key].body), belly: hex(PALETTES[key].belly), accent: hex(PALETTES[key].accent) };
+	const shape = SHAPES[key] || 'blob';
 	const pix = new Pix(W, H);
 	const g = makeG(pix);
 	for (let row = 0; row < order.length; row++) {
 		const state = order[row];
 		const count = countOf(state);
-		for (let f = 0; f < count; f++) drawCell(pix, g, f, row, state, f, count, pal);
+		for (let f = 0; f < count; f++) drawCell(pix, g, f, row, state, f, count, pal, shape);
 	}
 
 	let ok = true;

@@ -2,6 +2,14 @@
 
 本仓库的所有重要变更都记录在此。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-08-18
+
+### Added
+- **两只鲸鱼形象**：`graywhale`（灰鲸，DeepSeek Harness logo 造型，灰色 #8b95a5）与 `bluewhale`（蓝鲸，DeepSeek 官方 logo 造型，品牌蓝 #4d6bfe）。
+- 新增 `drawWhale` 侧视鲸鱼绘制：身体椭圆 + 头部 + 尾鳍，idle 呼吸喷**水柱**、工作中冒**气泡**、waving 举**胸鳍**、jumping 是**跃出水面**、running-left 整体镜像。
+- `BUILTIN_PETS` 条目新增 `shape` 字段（`blob` / `whale`），`buildDefaultAsset` 按 shape 分派绘制。
+- `render-atlas.mjs` 同步鲸鱼 SDF 端口（椭圆距离场），`--all` 现在渲染全部五只宠物。
+
 ## [0.2.0] - 2026-08-18
 
 ### Added
