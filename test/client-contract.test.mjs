@@ -66,11 +66,16 @@ const fakeCtx = {
 };
 mod.apply(fakeCtx);
 
-assert.equal(registrations.length, 1);
+assert.equal(registrations.length, 2);
+// pet overlay (the visible sprite)
 assert.equal(registrations[0].opts.name, 'shell.overlay');
 assert.equal(registrations[0].opts.id, 'dsh-pet');
 assert.equal(typeof registrations[0].Component, 'function');
+// headless bridge overlay (pushes state to the dsh-pet-desktop Electron app)
+assert.equal(registrations[1].opts.id, 'dsh-pet-bridge');
+assert.equal(typeof registrations[1].Component, 'function');
 assert.equal(registrations[0].opts.inject().sessionsService, fakeCtx.sessions);
+assert.equal(registrations[1].opts.inject().sessionsService, fakeCtx.sessions);
 
 // --- built-in pets: three palettes, Codex-format grid via `frame` override ---
 assert.deepEqual(Object.keys(mod.BUILTIN_PETS).sort(), ['amber', 'berry', 'dee']);
