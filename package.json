@@ -1,7 +1,7 @@
 {
   "name": "@minybear/dsh-pet",
   "description": "Codex-style desktop pet for the DSH web GUI: a floating animated sprite driven by the agent's running state",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
