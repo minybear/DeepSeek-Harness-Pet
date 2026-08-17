@@ -2,7 +2,7 @@
 
 Codex 风格的「桌面宠物」DSH 客户端插件：在 DeepSeek Harness（DSH）Web GUI 里漂浮一只动画小宠物，由当前会话的 **agent 运行状态**实时驱动（工作 / 等待输入 / 报错 / 刚完成 / 待机）。
 
-> 复刻对象：OpenAI Codex 桌面版的 Pets 功能。调研结论见 [`docs/Codex-Pet-能力分析.md`](docs/Codex-Pet-能力分析.md) 与 [`docs/复刻方案.md`](docs/复刻方案.md)；与 Codex 官方能力的逐项对照见 [`docs/差距分析.md`](docs/差距分析.md)。
+> 复刻对象：OpenAI Codex 桌面版的 Pets 功能。调研结论见 [`docs/Codex-Pet-能力分析.md`](docs/Codex-Pet-能力分析.md) 与 [`docs/复刻方案.md`](docs/复刻方案.md)；与 Codex 官方能力的逐项对照见 [`docs/差距分析.md`](docs/差距分析.md)；版本变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## 能力
 
