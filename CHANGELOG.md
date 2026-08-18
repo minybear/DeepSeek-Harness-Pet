@@ -2,6 +2,13 @@
 
 本仓库的所有重要变更都记录在此。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [0.4.0] - 2026-08-18
+
+### Added
+- **养成数值系统**（Tamagotchi 风，本插件扩展能力）：🍖 饱食 / 😊 心情 0–100，按**墙钟时间**衰减（关闭浏览器也计时；饱食约 8h、心情约 6h 见底），🍗 喂食 +30 饱食、🎾 玩耍 +25 心情。
+- 菜单新增两条数值进度条；待机且某项 <20 时宠物冒「🍖 饿了 / 🎾 想玩」提示气泡（会话状态优先，不打断工作/等待/报错显示）。
+- `pet-core` 新增纯函数 `decayStats / feedStats / playStats / statHint`（含 parity 一致性覆盖与 10 组边界单测）。
+
 ## [0.3.0] - 2026-08-18
 
 ### Added

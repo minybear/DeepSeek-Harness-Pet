@@ -36,10 +36,36 @@ const inline = mod.__petCore;
 assert.ok(inline, 'client.js must export __petCore');
 
 // --- constants are identical ---------------------------------------------------
-for (const key of ['DEFAULT_FRAME', 'STATE_ROWS', 'STATE_FRAME_COUNTS', 'STATE_DURATIONS_MS', 'STATE_TTLS_MS', 'STATE_LABELS']) {
+for (const key of ['DEFAULT_FRAME', 'STATE_ROWS', 'STATE_FRAME_COUNTS', 'STATE_DURATIONS_MS', 'STATE_TTLS_MS', 'STATE_LABELS', 'STAT_DECAY_PER_HOUR', 'STAT_RESTORE', 'STAT_LOW_THRESHOLD']) {
   assert.deepEqual(inline[key], core[key], `constant ${key} drifted`);
 }
 assert.deepEqual([...inline.DRIVABLE_STATES], [...core.DRIVABLE_STATES], 'DRIVABLE_STATES drifted');
+
+// --- care stats: identical across a stored-record matrix -------------------------
+{
+  const T = 1_700_000_000_000;
+  const HOUR = 3_600_000;
+  const records = [
+    null,
+    undefined,
+    {},
+    { hunger: 100, mood: 100, updatedAt: T },
+    { hunger: 5, mood: 95, updatedAt: T },
+    { hunger: 0, mood: 0, updatedAt: T },
+    { hunger: 120, mood: -10, updatedAt: T },   // out-of-range inputs
+    { hunger: 'x', mood: null, updatedAt: T },  // wrong types
+    { updatedAt: T - 24 * HOUR },               // no stats, old timestamp
+    { hunger: 50, mood: 50, updatedAt: T + HOUR }, // future timestamp
+  ];
+  for (const rec of records) {
+    for (const now of [T, T + HOUR, T + 24 * HOUR]) {
+      assert.deepEqual(inline.decayStats(rec, now), core.decayStats(rec, now), `decayStats ${JSON.stringify(rec)} @${now}`);
+      assert.deepEqual(inline.feedStats(rec, now), core.feedStats(rec, now), `feedStats ${JSON.stringify(rec)} @${now}`);
+      assert.deepEqual(inline.playStats(rec, now), core.playStats(rec, now), `playStats ${JSON.stringify(rec)} @${now}`);
+      assert.equal(inline.statHint(rec, now), core.statHint(rec, now), `statHint ${JSON.stringify(rec)} @${now}`);
+    }
+  }
+}
 
 // --- parsePetJson: same output (or same failure) across a manifest matrix ------
 const manifests = [

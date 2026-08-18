@@ -13,6 +13,13 @@ import {
   stateDurations,
   decaySignals,
   derivePetState,
+  STAT_DECAY_PER_HOUR,
+  STAT_RESTORE,
+  STAT_LOW_THRESHOLD,
+  decayStats,
+  feedStats,
+  playStats,
+  statHint,
 } from '../lib/pet-core.js';
 
 // --- official contract minimal manifest ------------------------------------
@@ -193,6 +200,38 @@ import {
     assert.equal(frames.length, STATE_FRAME_COUNTS[state], `frame count ${state}`);
     assert.equal(durs.length, frames.length, `duration count ${state}`);
   }
+}
+
+// --- care stats: wall-clock decay, restore, clamps, hints ----------------------
+{
+  const HOUR = 3_600_000;
+  const t0 = 1_700_000_000_000;
+  // fresh record defaults to full stats
+  assert.deepEqual(decayStats(null, t0), { hunger: 100, mood: 100, updatedAt: t0 });
+  // 4h decay: hunger 100 - 4*12.5 = 50, mood 100 - 4*(100/6) ≈ 33.3
+  const d = decayStats({ hunger: 100, mood: 100, updatedAt: t0 }, t0 + 4 * HOUR);
+  assert.equal(d.hunger, 50);
+  assert.equal(d.mood, 33.3);
+  assert.equal(d.updatedAt, t0 + 4 * HOUR);
+  // decay clamps at 0 (never negative), future timestamps are ignored
+  const d2 = decayStats({ hunger: 5, mood: 5, updatedAt: t0 }, t0 + 10 * HOUR);
+  assert.equal(d2.hunger, 0);
+  assert.equal(d2.mood, 0);
+  const d3 = decayStats({ hunger: 42, mood: 42, updatedAt: t0 }, t0 - HOUR);
+  assert.equal(d3.hunger, 42);
+  // feed/play restore (decay applied first), capped at 100
+  const fed = feedStats({ hunger: 85, mood: 10, updatedAt: t0 }, t0);
+  assert.equal(fed.hunger, 100);
+  assert.equal(fed.mood, 10);
+  const played = playStats({ hunger: 10, mood: 60, updatedAt: t0 }, t0 + 2 * HOUR);
+  assert.equal(played.hunger, 0); // 10 - 2*12.5 -> clamped
+  assert.equal(played.mood, 51.7); // 60 - 2*(100/6) + 25 = 51.66… -> rounded to 1dp
+  // hints: hunger outranks boredom, nothing when both fine
+  assert.equal(statHint({ hunger: 100, mood: 100, updatedAt: t0 }, t0), null);
+  assert.equal(statHint({ hunger: STAT_LOW_THRESHOLD - 1, mood: 5, updatedAt: t0 }, t0), 'hungry');
+  assert.equal(statHint({ hunger: 90, mood: STAT_LOW_THRESHOLD - 1, updatedAt: t0 }, t0), 'bored');
+  // hint boundary: exactly at threshold is NOT low
+  assert.equal(statHint({ hunger: STAT_LOW_THRESHOLD, mood: STAT_LOW_THRESHOLD, updatedAt: t0 }, t0), null);
 }
 
 console.log('pet-core: all assertions passed');
